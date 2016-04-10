@@ -14,7 +14,12 @@
     NSURL* _rtmpUrl;
     NSString* _Dest;
     NSString* _LiveName;
+    UIView* _ShowPreview;
+    float _micGain;
 }
+
+@dynamic micGain;
+
 + (instancetype)sharedinstance {
     static LiveVideoCoreSDK *s_instance;
     static dispatch_once_t onceToken;
@@ -58,6 +63,7 @@
             *stop = YES;
         }];
         
+        _ShowPreview = previewView;
         [previewView addSubview:_livesession.previewView];
         _livesession.previewView.frame = previewView.bounds;
         
@@ -101,10 +107,9 @@
             *stop = YES;
         }];
         
+        _ShowPreview = previewView;
         [previewView addSubview:_livesession.previewView];
         _livesession.previewView.frame = previewView.bounds;
-        
-        _livesession.useAdaptiveBitrate = true;
         
         NSLog(@"rtmpUrl=%@, destination=%@, livename=%@\r\nwidth=%.2f, height=%.2f, bitRate=%lu, frameRate=%lu",
               rtmpUrl.absoluteString, _Dest, _LiveName,
@@ -149,12 +154,26 @@
     }
 }
 
+-(void) setMicGain:(float)micGain{
+    _livesession.micGain = micGain;
+}
+
+-(float) micGain{
+    return _livesession.micGain;
+}
+
+- (void)focuxAtPoint:(CGPoint)point
+{
+    _livesession.focusPointOfInterest = point;
+    _livesession.exposurePointOfInterest = point;
+}
+
 //delegate operation
 - (void) connectionStatusChanged: (VCSessionState) sessionState{
     NSLog(@"rtmp live state: %i", sessionState);
     LIVE_VCSessionState state = (LIVE_VCSessionState)sessionState;
     
-    [self.delete LiveConnectionStatusChanged:state];
+    [self.delegate LiveConnectionStatusChanged:state];
     
     return;
 }
@@ -162,8 +181,10 @@
 - (void)setCameraFront:(Boolean)bCameraFrontFlag {
     if (!bCameraFrontFlag) {
         _livesession.cameraState = VCCameraStateBack;
+        //_ShowPreview.transform = CGAffineTransformMakeScale(1.0, 1.0);
     } else {
         _livesession.cameraState = VCCameraStateFront;
+        //_ShowPreview.transform = CGAffineTransformMakeScale(-1.0, 1.0);
     }
 }
 

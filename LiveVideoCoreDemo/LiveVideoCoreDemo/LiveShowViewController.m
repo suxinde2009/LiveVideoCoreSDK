@@ -11,19 +11,31 @@
 
 @implementation LiveShowViewController
 {
+    UIView* _AllBackGroudView;
     UIButton* _ExitButton;
     UILabel*  _RtmpStatusLabel;
     UIButton* _FilterButton;
     UIButton* _CameraChangeButton;
     XMNShareView* _FilterMenu;
+    ASValueTrackingSlider* _MicSlider;
     
     Boolean _bCameraFrontFlag;
+    
+    UIView *_focusBox;
 }
 @synthesize RtmpUrl;
 
 -(void) UIInit{
     double fScreenW = [UIScreen mainScreen].bounds.size.width;
     double fScreenH = [UIScreen mainScreen].bounds.size.height;
+    if (self.IsHorizontal) {
+        double fTmp = fScreenH;
+        fScreenH = fScreenW;
+        fScreenW = fTmp;
+    }
+    
+    _AllBackGroudView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, fScreenW, fScreenH)];
+    [self.view addSubview:_AllBackGroudView];
     
     float fExitButtonW = 40;
     float fExitButtonH = 20;
@@ -80,16 +92,52 @@
     _CameraChangeButton.titleLabel.font = [UIFont fontWithName:@"Helvetica-Bold" size:11];
     [_CameraChangeButton addTarget:self action:@selector(OnCameraChangeClicked:) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_CameraChangeButton];
+    
+    float fMicSliderX = 20;
+    float fMicSliderY = fCameraChangeButtonY - fCameraChangeButtonH - 10;
+    float fMicSliderW = fScreenW - fMicSliderX*2;
+    float fMicSliderH = 30;
+    _MicSlider = [[ASValueTrackingSlider alloc] initWithFrame:CGRectMake(fMicSliderX, fMicSliderY, fMicSliderW, fMicSliderH)];
+    _MicSlider.maximumValue = 10.0;
+    _MicSlider.popUpViewCornerRadius = 4;
+    [_MicSlider setMaxFractionDigitsDisplayed:0];
+    _MicSlider.popUpViewColor = [UIColor colorWithHue:0.55 saturation:0.8 brightness:0.9 alpha:0.7];
+    _MicSlider.font = [UIFont fontWithName:@"GillSans-Bold" size:18];
+    _MicSlider.textColor = [UIColor colorWithHue:0.55 saturation:1.0 brightness:0.5 alpha:1];
+    _MicSlider.popUpViewWidthPaddingFactor = 1.7;
+    _MicSlider.delegate = self;
+    _MicSlider.dataSource = self;
+    _MicSlider.value = 5;
+    [self.view addSubview:_MicSlider];
+    
+    UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(dealSingleTap:)];
+    [self.view addGestureRecognizer:singleTap];
+    
+    _focusBox = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 150, 150)];
+    _focusBox.backgroundColor = [UIColor clearColor];
+    _focusBox.layer.borderColor = [UIColor greenColor].CGColor;
+    _focusBox.layer.borderWidth = 5.0f;
+    _focusBox.hidden = YES;
+    [self.view addSubview:_focusBox];
 }
 
 -(void) RtmpInit{
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[LiveVideoCoreSDK sharedinstance] LiveInit:RtmpUrl Preview:self.view VideSize:LIVE_VIEDO_SIZE_CIF BitRate:LIVE_BITRATE_500Kbps FrameRate:LIVE_FRAMERATE_20];
-        [LiveVideoCoreSDK sharedinstance].delete = self;
+        CGSize videosize;
         
+        if (self.IsHorizontal) {
+            videosize = LIVE_VIEDO_SIZE_HORIZONTAL_D1;
+        }else{
+            videosize = LIVE_VIEDO_SIZE_D1;
+        }
+        [[LiveVideoCoreSDK sharedinstance] LiveInit:RtmpUrl Preview:_AllBackGroudView VideSize:videosize BitRate:LIVE_BITRATE_800Kbps FrameRate:LIVE_FRAMERATE_20];
+        [LiveVideoCoreSDK sharedinstance].delegate = self;
         [[LiveVideoCoreSDK sharedinstance] connect];
         NSLog(@"Rtmp[%@] is connecting", self.RtmpUrl);
         
+        [LiveVideoCoreSDK sharedinstance].micGain = 5;
+
+        [self.view addSubview:_MicSlider];
         [self.view addSubview:_ExitButton];
         [self.view addSubview:_RtmpStatusLabel];
         [self.view addSubview:_FilterButton];
@@ -168,7 +216,24 @@
 -(void) OnExitClicked:(id)sender{
     NSLog(@"Rtmp[%@] is ended", self.RtmpUrl);
     [[LiveVideoCoreSDK sharedinstance] disconnect];
+    [[LiveVideoCoreSDK sharedinstance] LiveRelease];
     [self dismissModalViewControllerAnimated:YES];
+}
+
+- (BOOL) shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation {
+    if(self.IsHorizontal){
+        bool bRet = ((toInterfaceOrientation == UIInterfaceOrientationLandscapeRight) || (toInterfaceOrientation == UIInterfaceOrientationLandscapeLeft));
+        return bRet;
+    }else{
+        return false;
+    }
+}
+- (NSUInteger)supportedInterfaceOrientations {
+    if(self.IsHorizontal){
+        return UIInterfaceOrientationMaskLandscapeRight|UIInterfaceOrientationMaskLandscapeLeft;
+    }else{
+        return UIInterfaceOrientationMaskPortrait;
+    }
 }
 
 - (void)viewDidLoad {
@@ -179,6 +244,75 @@
     [self RtmpInit];
     
     _bCameraFrontFlag = false;
+}
+- (void) viewWillAppear:(BOOL)animated{
+    NSLog(@"CameraViewController: viewWillAppear");
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(WillResignActiveNotification) name:UIApplicationWillResignActiveNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(WillDidBecomeActiveNotification) name:UIApplicationDidBecomeActiveNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appWillEnterForegroundNotification) name:UIApplicationDidBecomeActiveNotification object:nil];
+    
+    [super viewDidAppear:YES];
+}
+
+- (void) appWillEnterForegroundNotification{
+    NSLog(@"trigger event when will enter foreground.");
+    if (![self hasPermissionOfCamera]) {
+        return;
+    }
+    [self RtmpInit];
+
+}
+- (void)WillDidBecomeActiveNotification{
+    NSLog(@"CameraViewController: WillDidBecomeActiveNotification");
+
+}
+
+- (void)WillResignActiveNotification{
+    NSLog(@"LiveShowViewController: WillResignActiveNotification");
+    
+    if (![self hasPermissionOfCamera]) {
+        return;
+    }
+    //得到当前应用程序的UIApplication对象
+    UIApplication *app = [UIApplication sharedApplication];
+    
+    //一个后台任务标识符
+    UIBackgroundTaskIdentifier taskID;
+    taskID = [app beginBackgroundTaskWithExpirationHandler:^{
+        //如果系统觉得我们还是运行了太久，将执行这个程序块，并停止运行应用程序
+        [app endBackgroundTask:taskID];
+    }];
+    //UIBackgroundTaskInvalid表示系统没有为我们提供额外的时候
+    if (taskID == UIBackgroundTaskInvalid) {
+        NSLog(@"Failed to start background task!");
+        return;
+    }
+    
+    //[[SCCaptureManager sharedManager] disconnect];
+    [[LiveVideoCoreSDK sharedinstance] disconnect];
+    [[LiveVideoCoreSDK sharedinstance] LiveRelease];
+    
+    //告诉系统我们完成了
+    [app endBackgroundTask:taskID];
+}
+- (BOOL)hasPermissionOfCamera
+{
+    NSString *mediaType = AVMediaTypeVideo;
+    AVAuthorizationStatus authStatus = [AVCaptureDevice authorizationStatusForMediaType:mediaType];
+    if(authStatus != AVAuthorizationStatusAuthorized){
+        
+        NSLog(@"相机权限受限");
+        return NO;
+    }
+    return YES;
+}
+-(void) viewDidDisappear:(BOOL)animated{
+    NSLog(@"CameraViewController: viewDidDisappear");
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationWillResignActiveNotification object:nil];//删除去激活界面的回调
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];//删除激活界面的回调
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -211,4 +345,48 @@
     });
 }
 
+- (NSString *)slider:(ASValueTrackingSlider *)slider stringForValue:(float)value{
+    if (slider == _MicSlider) {
+        float fMicGain = value/10.0;
+        NSLog(@"mic slider:%0.2f, %0.2f", value, fMicGain);
+        [LiveVideoCoreSDK sharedinstance].micGain = fMicGain;
+    }
+    
+    return nil;
+}
+
+- (void)sliderWillDisplayPopUpView:(ASValueTrackingSlider *)slider{
+    NSLog(@"sliderWillDisplayPopUpView...");
+    return;
+}
+
+- (void)sliderWillHidePopUpView:(ASValueTrackingSlider *)slider{
+    NSLog(@"sliderWillHidePopUpView...");
+}
+
+- (void)dealSingleTap:(UITapGestureRecognizer *)tap
+{
+    CGPoint point = [tap locationInView:self.view];
+    [[LiveVideoCoreSDK sharedinstance] focuxAtPoint:point];
+    [self runBoxAnimationOnView:_focusBox point:point];
+}
+//对焦的动画效果
+- (void)runBoxAnimationOnView:(UIView *)view point:(CGPoint)point {
+    view.center = point;
+    view.hidden = NO;
+    [UIView animateWithDuration:0.2f
+                          delay:0.0f
+                        options:UIViewAnimationOptionCurveEaseInOut
+                     animations:^{
+                         view.layer.transform = CATransform3DMakeScale(0.5, 0.5, 1.0);
+                     }
+                     completion:^(BOOL complete) {
+                         double delayInSeconds = 0.5f;
+                         dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+                         dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+                             view.hidden = YES;
+                             view.transform = CGAffineTransformIdentity;
+                         });
+                     }];
+}
 @end

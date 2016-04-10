@@ -8,12 +8,16 @@
 
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
-#import "VCSimpleSession.h"
+#import "../RtmpLivePushSDK/VideoCore/api/IOS/VCSimpleSession.h"
 
 #define LIVE_VIDEO_DEF_WIDTH  360
 #define LIVE_VIDEO_DEF_HEIGHT 640
 #define LIVE_VIDEO_DEF_FRAMERATE 25
 #define LIVE_VIDEO_DEF_BITRATE   500000
+
+#define LIVE_VIEDO_SIZE_HORIZONTAL_CIF  (CGSizeMake(640, 360))
+#define LIVE_VIEDO_SIZE_HORIZONTAL_D1   (CGSizeMake(960, 540))
+#define LIVE_VIEDO_SIZE_HORIZONTAL_720P (CGSizeMake(1280, 720))
 
 #define LIVE_VIEDO_SIZE_CIF  (CGSizeMake(360, 640))
 #define LIVE_VIEDO_SIZE_D1   (CGSizeMake(540, 960))
@@ -58,7 +62,8 @@ typedef NS_ENUM(NSUInteger, LIVE_FILTER_TYPE) {
 
 + (instancetype)sharedinstance;
 
-@property (atomic, weak)   id<LIVEVCSessionDelegate> delete;
+@property (atomic, weak)   id<LIVEVCSessionDelegate> delegate;
+@property (atomic, assign) float micGain;//0~1.0
 
 - (void)LiveInit:(NSURL*)rtmpUrl Preview:(UIView*)previewView;
 - (void)LiveInit:(NSURL*)rtmpUrl Preview:(UIView*)previewView VideSize:(CGSize)videSize BitRate:(LIVE_BITRATE)iBitRate FrameRate:(LIVE_FRAMERATE)iFrameRate;
@@ -71,6 +76,7 @@ typedef NS_ENUM(NSUInteger, LIVE_FILTER_TYPE) {
 - (void)setCameraFront:(Boolean)bCameraFrontFlag;
 - (void)setFilter:(LIVE_FILTER_TYPE) type;
 
+- (void)focuxAtPoint:(CGPoint)point;
 //VCSessionDelegate protocal
 - (void) connectionStatusChanged: (VCSessionState) sessionState;
 
