@@ -1,44 +1,21 @@
 # LiveVideoCoreSDK 
 基于IOS的手机视频直播SDK.
 ============================
-视频直播时代来临了，手机视频直播国内已经非常火爆，并且手机美颜视频直播也已经兴起。
-
-LiveVideoCoreSDK是基于IOS的视频直播SDK(支持IOS8.1以上)
---------------------------------------------------------
-如果觉得本SDK对你的项目有用，接收捐赠. 接收捐赠的支付宝帐号:xiaoq_bj@126.com
+LiveVideoCoreSDK是基于IOS的视频直播SDK(支持IOS8.1以上,基于开源videocore进行了改进)
 -----------------------------------------------------------------------------
-包含一下功能:
+分辨率,速率配对关系:<br/>
+1, 720x1280:至少1.5mbps;<br/>
+2, 540x960: 至少800kbps;<br/>
+3, 360x640: 至少:600kbps;<br/>
+ 
+如果想获取丰富的滤镜直播效果，并且免除编译整合的困难, 可以到我新的基于gpuimage的代码库:<br/>
+1, 多滤镜IOS推流SDK:<br/>
+基于GPUImage的多滤镜拍摄, 滤镜资源丰富. [GPUImageRtmpPush](https://github.com/runner365/GPUImageRtmpPush)<br/>
+2, Android rtmp拍摄直播SDK:<br/>
+Android手机软编码，手机适配能力强，支持所有市面的RTMP服务器。
+[android_rtmppush_sdk](https://github.com/runner365/android_rtmppush_sdk) <br/>
+<br/>
+RTMP推荐开源服务器:
+----------------------
+* SRS(simple rtmp server): 国产独立的RTMP服务， [srs](https://github.com/ossrs/srs) <br/>
 
-####1, 提供IOS苹果手机的RTMP推流；####
-
-填写RTMP服务地址，直接就可以进行推流。
-
-####2，美颜直播####
-
-美不美都能装的直播，IOS OPENGL美艳加速，手机完全不发烫。
-
-####3，前后摄像头随时切换####
-
-####4，提供RTMP连接状态的回调####
-<br>
-SDK代码结构简介：
-----------------------------------
-####一，如何马上使用？####
-下载代码后，直接用xcode打开LiveVideoCoreSDK.xcworkspace。(注意是xcworkspace，不是xcodeproj)
-
-需要注意的是，视频直播不支持xcode的虚拟机，请用iphone真机进行调试和试用。
-
-
-####二，代码结构####
-1) LiveVideoCoreDemo就是Demo例子，你抄代码的地方，你懂的。
-
-2) LiveVideoCoreSDK是SDK接口，视频直播的接口都在这里；
-
-3) RtmpLivePushSDK: 核心代码，基于videocore进行了修改，希望自己研究和改进代码的，来这里。
-
-备注：本客户端支持Wowza, nginx-rtmp，Edgecast，RED5，FMS几种类型的RTMP服务器. >还未确认支持的有crtmpserver和python rtmp server。
---------------------------------------------------------
-如果有问题，可以在我的问题区提问，欢迎交流。
--------------------------------------------------------
-直播技术讨论QQ群: 487156420
-----------------------------------------------------
